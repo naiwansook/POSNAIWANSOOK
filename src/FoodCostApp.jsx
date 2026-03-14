@@ -51,6 +51,22 @@ const api = {
   getActionHist: () => sb("action_history?order=id.desc&limit=100"),
   addActionHist: (d) => sb("action_history", { method: "POST", body: JSON.stringify(d) }),
   clearActionHist: () => sb("action_history?id=gt.0", { method: "DELETE", headers: { "Prefer": "return=minimal" } }),
+  // storage
+  uploadImage: async (file, path) => {
+    const res = await fetch(`${SUPA_URL}/storage/v1/object/foodcost-images/${path}`, {
+      method: "POST",
+      headers: { "apikey": SUPA_KEY, "Authorization": `Bearer ${SUPA_KEY}`, "Content-Type": file.type, "x-upsert": "true" },
+      body: file,
+    });
+    if (!res.ok) throw new Error(await res.text());
+    return `${SUPA_URL}/storage/v1/object/public/foodcost-images/${path}`;
+  },
+  deleteImage: async (path) => {
+    await fetch(`${SUPA_URL}/storage/v1/object/foodcost-images/${path}`, {
+      method: "DELETE",
+      headers: { "apikey": SUPA_KEY, "Authorization": `Bearer ${SUPA_KEY}` },
+    });
+  },
 };
 
 // ── Design Tokens ──────────────────────────────────────
@@ -155,14 +171,48 @@ function Modal({title,onClose,children,wide,extraWide}){
   </div>;
 }
 function EditedBy({username,editAt}){if(!username)return null;return <span style={{fontSize:10,color:C.ink4,fontFamily:"'Sarabun',sans-serif",display:"flex",alignItems:"center",gap:3}}><Ic d={I.user} s={9} c={C.ink4}/>แก้โดย {username}{editAt?` · ${editAt}`:""}</span>;}
+// ── Image compression helper ──────────────────────────
+async function compressImage(file, maxW=800, quality=0.75) {
+  return new Promise(resolve => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      const scale = Math.min(1, maxW / Math.max(img.width, img.height));
+      const w = Math.round(img.width * scale);
+      const h = Math.round(img.height * scale);
+      const canvas = document.createElement("canvas");
+      canvas.width = w; canvas.height = h;
+      canvas.getContext("2d").drawImage(img, 0, 0, w, h);
+      canvas.toBlob(blob => { URL.revokeObjectURL(url); resolve(blob); }, "image/jpeg", quality);
+    };
+    img.src = url;
+  });
+}
+
 function ImgUp({value,onChange,label,compact}){
   const ref=useRef();
-  const h=e=>{const f=e.target.files?.[0];if(!f)return;if(f.size>3*1024*1024){alert("รูปต้องไม่เกิน 3MB");return;}const r=new FileReader();r.onload=ev=>onChange(ev.target.result);r.readAsDataURL(f);e.target.value="";};
+  const [uploading,setUploading]=useState(false);
+  const h=async e=>{
+    const f=e.target.files?.[0];if(!f)return;
+    if(f.size>10*1024*1024){alert("รูปต้องไม่เกิน 10MB");return;}
+    setUploading(true);
+    try{
+      const compressed=await compressImage(f,800,0.75);
+      const ext="jpg";
+      const path=`${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+      const url=await api.uploadImage(new File([compressed],path,{type:"image/jpeg"}),path);
+      onChange(url);
+    }catch(err){alert("อัปโหลดรูปไม่สำเร็จ: "+err.message);}
+    setUploading(false);
+    e.target.value="";
+  };
   return <div style={{marginBottom:compact?0:16}}>{label&&!compact&&<div style={{fontSize:13,fontWeight:600,color:C.ink2,marginBottom:6,fontFamily:"'Sarabun',sans-serif"}}>{label}</div>}
     <div style={{display:"flex",alignItems:"center",gap:12}}>
       {value?<div style={{position:"relative"}}><img src={value} alt="" style={{width:compact?44:96,height:compact?44:96,objectFit:"cover",borderRadius:compact?8:14,border:`2px solid ${C.line}`}}/><button onClick={()=>onChange(null)} style={{position:"absolute",top:-7,right:-7,width:20,height:20,borderRadius:"50%",background:C.red,border:`2px solid ${C.white}`,color:C.white,cursor:"pointer",fontSize:10,display:"flex",alignItems:"center",justifyContent:"center",fontWeight:700}}>✕</button></div>
-      :<div onClick={()=>ref.current?.click()} style={{width:compact?44:96,height:compact?44:96,border:`2px dashed ${C.line}`,borderRadius:compact?8:14,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",cursor:"pointer",background:C.bg,gap:4,transition:"all .2s"}} onMouseEnter={e=>{e.currentTarget.style.borderColor=C.brand;e.currentTarget.style.background=C.brandLight;}} onMouseLeave={e=>{e.currentTarget.style.borderColor=C.line;e.currentTarget.style.background=C.bg;}}><Ic d={I.img} s={compact?16:24} c={C.ink4}/>{!compact&&<span style={{fontSize:11,color:C.ink4,fontFamily:"'Sarabun',sans-serif"}}>อัปโหลด</span>}</div>}
-      {!compact&&!value&&<div style={{fontSize:12,color:C.ink4,fontFamily:"'Sarabun',sans-serif",lineHeight:1.6}}>JPG, PNG<br/>ไม่เกิน 3MB</div>}
+      :<div onClick={()=>ref.current?.click()} style={{width:compact?44:96,height:compact?44:96,border:`2px dashed ${C.line}`,borderRadius:compact?8:14,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",cursor:"pointer",background:uploading?C.brandLight:C.bg,gap:4,transition:"all .2s"}} onMouseEnter={e=>{e.currentTarget.style.borderColor=C.brand;e.currentTarget.style.background=C.brandLight;}} onMouseLeave={e=>{if(!uploading){e.currentTarget.style.borderColor=C.line;e.currentTarget.style.background=C.bg;}}}>
+        {uploading?<span style={{fontSize:10,color:C.brand,fontFamily:"'Sarabun',sans-serif",textAlign:"center",padding:4}}>กำลังอัปโหลด...</span>:<><Ic d={I.img} s={compact?16:24} c={C.ink4}/>{!compact&&<span style={{fontSize:11,color:C.ink4,fontFamily:"'Sarabun',sans-serif"}}>อัปโหลด</span>}</>}
+      </div>}
+      {!compact&&!value&&!uploading&&<div style={{fontSize:12,color:C.ink4,fontFamily:"'Sarabun',sans-serif",lineHeight:1.6}}>JPG, PNG<br/>ย่อรูปอัตโนมัติ<br/>ไม่เกิน 10MB</div>}
       <input ref={ref} type="file" accept="image/*" onChange={h} style={{display:"none"}}/>
     </div>
   </div>;
