@@ -1,9 +1,20 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 
-const SUPA_URL = "https://niplvsfxynrufiyvbwme.supabase.co";
-const SUPA_KEY = "sb_publishable_jpym6Xg4gOIPWDUDt5IntQ_7Bbh9KcZ";
+const SUPA_URL = import.meta.env.VITE_SUPA_URL;
+const SUPA_KEY = import.meta.env.VITE_SUPA_ANON_KEY;
+
+function requireSupaConfig() {
+  if (!SUPA_URL || !SUPA_KEY) {
+    throw new Error(
+      "Missing Supabase config for this deployment. " +
+        "Please set Vercel Environment Variables: " +
+        "`VITE_SUPA_URL` and `VITE_SUPA_ANON_KEY`."
+    );
+  }
+}
 
 async function sb(path, opts = {}) {
+  requireSupaConfig();
   const res = await fetch(`${SUPA_URL}/rest/v1/${path}`, {
     headers: { "apikey": SUPA_KEY, "Authorization": `Bearer ${SUPA_KEY}`, "Content-Type": "application/json", "Prefer": opts.prefer || "return=representation", ...opts.headers },
     ...opts,
@@ -14,7 +25,8 @@ async function sb(path, opts = {}) {
 }
 
 const api = {
-  getIngs: (bid) => sb(`ingredients?order=id.asc${bid ? `&branch_id=eq.${bid}` : ""}`),
+  // ให้เรียงจากใหม่ไปเก่า เพื่อให้ของที่เพิ่งสร้างเห็นได้ทันทีบนหน้าแรก
+  getIngs: (bid) => sb(`ingredients?order=id.desc${bid ? `&branch_id=eq.${bid}` : ""}`),
   addIng: (d) => sb("ingredients", { method: "POST", body: JSON.stringify(d) }),
   updateIng: (id, d) => sb(`ingredients?id=eq.${id}`, { method: "PATCH", body: JSON.stringify(d) }),
   deleteIng: (id) => sb(`ingredients?id=eq.${id}`, { method: "DELETE", headers: { "Prefer": "return=minimal" } }),
@@ -29,7 +41,7 @@ const api = {
   addUser: (d) => sb("app_users", { method: "POST", body: JSON.stringify(d) }),
   updateUser: (id, d) => sb(`app_users?id=eq.${id}`, { method: "PATCH", body: JSON.stringify(d) }),
   deleteUser: (id) => sb(`app_users?id=eq.${id}`, { method: "DELETE", headers: { "Prefer": "return=minimal" } }),
-  loginUser: (u, p) => sb(`app_users?username=eq.${u}&password=eq.${p}&active=eq.true`),
+  loginUser: (u, p) => sb(`app_users?username=eq.${encodeURIComponent(u)}&password=eq.${encodeURIComponent(p)}&active=eq.true`),
   getBranches: () => sb("branches?order=id.asc"),
   addBranch: (d) => sb("branches", { method: "POST", body: JSON.stringify(d) }),
   updateBranch: (id, d) => sb(`branches?id=eq.${id}`, { method: "PATCH", body: JSON.stringify(d) }),
@@ -50,6 +62,7 @@ const api = {
   deleteOrder: (id) => sb(`order_requests?id=eq.${id}`, { method: "DELETE", headers: { "Prefer": "return=minimal" } }),
   getAllOrders: () => sb("order_requests?order=id.desc"),
   uploadImage: async (file, path) => {
+    requireSupaConfig();
     const res = await fetch(`${SUPA_URL}/storage/v1/object/foodcost-images/${path}`, {
       method: "POST", headers: { "apikey": SUPA_KEY, "Authorization": `Bearer ${SUPA_KEY}`, "Content-Type": file.type, "x-upsert": "true" }, body: file,
     });
@@ -162,11 +175,78 @@ function Loading({text="กำลังโหลด..."}){return <div style={{di
 function ErrBox({msg,onRetry}){return <div style={{background:C.redLight,border:`1px solid ${C.red}22`,borderRadius:12,padding:"16px 20px",display:"flex",alignItems:"center",gap:12,margin:"16px 0"}}><Ic d={I.warning} s={20} c={C.red}/><span style={{flex:1,color:C.red,fontFamily:"'Sarabun',sans-serif",fontSize:14}}>{msg}</span>{onRetry&&<Btn v="danger" onClick={onRetry} s={{padding:"6px 14px",fontSize:12}}>ลองใหม่</Btn>}</div>;}
 function STh({label,col,sortCol,sortDir,onSort}){const active=sortCol===col;return <th onClick={()=>onSort(col)} style={{padding:"10px 12px",textAlign:"left",fontSize:11,fontWeight:700,color:active?C.brand:C.ink3,cursor:"pointer",whiteSpace:"nowrap",userSelect:"none",background:active?C.brandLight:C.bg}}><div style={{display:"flex",alignItems:"center",gap:4}}>{label}<Ic d={active?(sortDir==="asc"?I.sortAsc:I.sortDesc):I.sortAsc} s={12} c={active?C.brand:C.ink4}/></div></th>;}
 
-async function compressImage(file,maxW=800,quality=0.75){return new Promise(resolve=>{const img=new Image();const url=URL.createObjectURL(file);img.onload=()=>{const scale=Math.min(1,maxW/Math.max(img.width,img.height));const w=Math.round(img.width*scale);const h=Math.round(img.height*scale);const canvas=document.createElement("canvas");canvas.width=w;canvas.height=h;canvas.getContext("2d").drawImage(img,0,0,w,h);canvas.toBlob(blob=>{URL.revokeObjectURL(url);resolve(blob);},"image/jpeg",quality);};img.src=url;});}
+async function compressImage(file, maxW = 800, quality = 0.75) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+
+    img.onload = () => {
+      try {
+        const scale = Math.min(1, maxW / Math.max(img.width, img.height));
+        const w = Math.round(img.width * scale);
+        const h = Math.round(img.height * scale);
+
+        const canvas = document.createElement("canvas");
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) throw new Error("No canvas context");
+
+        ctx.drawImage(img, 0, 0, w, h);
+        canvas.toBlob(
+          (blob) => {
+            URL.revokeObjectURL(url);
+            if (!blob) return reject(new Error("Image compression failed (blob is null)"));
+            resolve(blob);
+          },
+          "image/jpeg",
+          quality
+        );
+      } catch (e) {
+        URL.revokeObjectURL(url);
+        reject(e);
+      }
+    };
+
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error("Image load failed"));
+    };
+
+    img.src = url;
+  });
+}
 
 function ImgUp({value,onChange,label,compact}){
   const ref=useRef();const[uploading,setUploading]=useState(false);
-  const h=async e=>{const f=e.target.files?.[0];if(!f)return;if(f.size>10*1024*1024){alert("รูปต้องไม่เกิน 10MB");return;}setUploading(true);try{const compressed=await compressImage(f,800,0.75);const path=`${Date.now()}-${Math.random().toString(36).slice(2)}.jpg`;const url=await api.uploadImage(new File([compressed],path,{type:"image/jpeg"}),path);onChange(url);}catch(err){alert("อัปโหลดรูปไม่สำเร็จ: "+err.message);}setUploading(false);e.target.value="";};
+  const h=async e=>{
+    const f=e.target.files?.[0];
+    if(!f)return;
+    if(f.size>10*1024*1024){alert("รูปต้องไม่เกิน 10MB");return;}
+    setUploading(true);
+    try{
+      const base=`${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      const originalExt = (f.type || "").includes("png") ? "png" : "jpg";
+
+      // เสถียรขึ้น: ถ้า compressImage ล้มเหลว ให้ fallback อัปโหลดไฟล์เดิม
+      let fileToUpload = f;
+      let uploadPath = `${base}.${originalExt}`;
+      try{
+        const compressedBlob = await compressImage(f,800,0.75);
+        fileToUpload = new File([compressedBlob], `${base}.jpg`, { type: "image/jpeg" });
+        uploadPath = `${base}.jpg`;
+      }catch(_){
+        // ignore compression failure; fallback to original file
+      }
+
+      const url=await api.uploadImage(fileToUpload,uploadPath);
+      onChange(url);
+    }catch(err){
+      alert("อัปโหลดรูปไม่สำเร็จ: "+err.message);
+    }
+    setUploading(false);
+    e.target.value="";
+  };
   return <div style={{marginBottom:compact?0:16}}>{label&&!compact&&<div style={{fontSize:13,fontWeight:600,color:C.ink2,marginBottom:6,fontFamily:"'Sarabun',sans-serif"}}>{label}</div>}
     <div style={{display:"flex",alignItems:"center",gap:12}}>
       {value?<div style={{position:"relative"}}><img src={value} alt="" style={{width:compact?44:96,height:compact?44:96,objectFit:"cover",borderRadius:compact?8:14,border:`2px solid ${C.line}`}}/><button onClick={()=>onChange(null)} style={{position:"absolute",top:-7,right:-7,width:20,height:20,borderRadius:"50%",background:C.red,border:`2px solid ${C.white}`,color:C.white,cursor:"pointer",fontSize:10,display:"flex",alignItems:"center",justifyContent:"center",fontWeight:700}}>✕</button></div>
@@ -520,8 +600,8 @@ function IngTab({ings,reload,ingCats,suppliers,currentUser,currentBranch,addH}){
   const filtered=useMemo(()=>ings.filter(i=>i.name.toLowerCase().includes(q.toLowerCase())&&(cat==="ทุกหมวด"||i.category===cat)),[ings,q,cat]);
   const paged=useMemo(()=>filtered.slice(0,pg*PG),[filtered,pg]);
   function upd(k,val){setForm(f=>{const n={...f,[k]:val};if(k==="buy_price"||k==="convert_to_gram")n.price_per_gram=ppg(+(k==="buy_price"?val:n.buy_price)||0,+(k==="convert_to_gram"?val:n.convert_to_gram)||1);if(k==="supplier_id"){const sup=suppliers.find(s=>String(s.id)===String(val));n.supplier_name=sup?sup.name:"";}return n;});}
-  async function save(){if(!form.name||!form.buy_price)return;setSaving(true);try{const item={...form,buy_price:+form.buy_price,buy_amount:+form.buy_amount,convert_to_gram:+form.convert_to_gram,price_per_gram:ppg(+form.buy_price,+form.convert_to_gram),stock:+form.stock,edit_by:currentUser.username,edit_at:nowStr(),branch_id:currentBranch.id,supplier_id:form.supplier_id?+form.supplier_id:null};if(editId){await api.updateIng(editId,item);addH(`แก้ไขวัตถุดิบ: ${form.name}`);}else{await api.addIng(item);addH(`เพิ่มวัตถุดิบ: ${form.name}`);}await reload();setOpen(false);}catch(e){alert("บันทึกไม่สำเร็จ: "+e.message);}setSaving(false);}
-  async function del(id,name){if(!confirm(`ลบ "${name}"?`))return;try{await api.deleteIng(id);addH(`ลบวัตถุดิบ: ${name}`);await reload();}catch(e){alert("ลบไม่สำเร็จ");}}
+  async function save(){if(!form.name||!form.buy_price)return;setSaving(true);try{const item={...form,buy_price:+form.buy_price,buy_amount:+form.buy_amount,convert_to_gram:+form.convert_to_gram,price_per_gram:ppg(+form.buy_price,+form.convert_to_gram),stock:+form.stock,edit_by:currentUser.username,edit_at:nowStr(),branch_id:currentBranch.id,supplier_id:form.supplier_id?+form.supplier_id:null};if(editId){await api.updateIng(editId,item);addH(`แก้ไขวัตถุดิบ: ${form.name}`);}else{await api.addIng(item);addH(`เพิ่มวัตถุดิบ: ${form.name}`);}await reload();setPg(1);setOpen(false);}catch(e){alert("บันทึกไม่สำเร็จ: "+e.message);}setSaving(false);}
+  async function del(id,name){if(!confirm(`ลบ "${name}"?`))return;try{await api.deleteIng(id);addH(`ลบวัตถุดิบ: ${name}`);await reload();setPg(1);}catch(e){alert("ลบไม่สำเร็จ");}}
   return <div>
     <div style={{display:"flex",gap:10,marginBottom:20,flexWrap:"wrap"}}>
       <div style={{position:"relative",flex:1,minWidth:220}}><span style={{position:"absolute",left:12,top:"50%",transform:"translateY(-50%)"}}><Ic d={I.search} s={16} c={C.ink4}/></span><input value={q} onChange={e=>{setQ(e.target.value);setPg(1);}} placeholder="ค้นหาวัตถุดิบ..." style={{...iS,paddingLeft:40}}/></div>
@@ -682,7 +762,11 @@ function SOPTab({menus,reload,ings,currentUser}){
   const[sel,setSel]=useState(menus[0]?.id??null);const[edit,setEdit]=useState(false);const[sop,setSop]=useState([]);const[saving,setSaving]=useState(false);const[ingQ,setIngQ]=useState("");
   const menu=useMemo(()=>menus.find(m=>m.id===sel),[menus,sel]);
   const canE=hasPerm(currentUser,"edit_sop");
-  useEffect(()=>{if(menu){setSop(menu.sop?[...menu.sop.map(s=>({...s}))]:[]); setEdit(false);}}, [sel]);
+  useEffect(()=>{
+    if(!menu) return;
+    setSop(menu.sop?[...menu.sop.map(s=>({...s}))]:[]);
+    setEdit(false);
+  }, [menu]);
   async function saveSop(){setSaving(true);try{await api.updateMenu(sel,{sop,edit_by:currentUser.username,edit_at:nowStr()});await reload();setEdit(false);}catch(e){alert("บันทึกไม่สำเร็จ: "+e.message);}setSaving(false);}
   const filteredIngs=useMemo(()=>ings.filter(i=>i.name.toLowerCase().includes(ingQ.toLowerCase())),[ings,ingQ]);
   return <div style={{display:"grid",gridTemplateColumns:"240px 1fr",gap:16,minHeight:520}}>
@@ -1184,6 +1268,7 @@ function SettingsTab({ingCats,menuCats,reloadCats,users,reloadUsers,branches,rel
 export default function App(){
   const[currentUser,setCurrentUser]=useState(null);
   const[currentBranch,setCurrentBranch]=useState(null);
+  const loadToken=useRef(0);
   const[ings,setIngs]=useState([]);const[menus,setMenus]=useState([]);
   const[allCats,setAllCats]=useState([]);const[users,setUsers]=useState([]);
   const[branches,setBranches]=useState([]);const[suppliers,setSuppliers]=useState([]);
@@ -1197,6 +1282,7 @@ export default function App(){
 
   async function loadAll(){
     if(!currentBranch)return;
+    const token=++loadToken.current;
     setLoading(true);setInitErr("");
     try{
       const isCentral=currentBranch.type==="central";
@@ -1208,14 +1294,28 @@ export default function App(){
         api.getActionHist(),
         api.getOrders(isCentral?null:currentBranch.id),
       ]);
+      if(loadToken.current!==token) return;
       setIngs(i);setMenus(m);setAllCats(c);setUsers(u);setBranches(b);setSuppliers(s);
       setCostHistory(ch);setActionHistory(ah);setOrders(o);
-      if(isCentral){const ao=await api.getAllOrders();setAllOrders(ao);}
-    }catch(e){setInitErr("เชื่อมต่อ Supabase ไม่ได้: "+e.message);}
-    setLoading(false);
+      if(isCentral){
+        const ao=await api.getAllOrders();
+        if(loadToken.current!==token) return;
+        setAllOrders(ao);
+      }
+    }catch(e){
+      if(loadToken.current===token){
+        setInitErr("เชื่อมต่อ Supabase ไม่ได้: "+e.message);
+      }
+    }finally{
+      if(loadToken.current===token){
+        setLoading(false);
+      }
+    }
   }
 
-  useEffect(()=>{if(currentBranch)loadAll();},[currentBranch]);
+  useEffect(()=>{
+    if(currentBranch) loadAll();
+  },[currentBranch]);
 
   const reload={
     ings:async()=>{const isCentral=currentBranch?.type==="central";const d=await api.getIngs(isCentral?null:currentBranch?.id);setIngs(d);},
@@ -1297,8 +1397,29 @@ export default function App(){
 // BranchSelector with auto-load branches
 function BranchSelectorWithLoad({user,onSelect,onLogout}){
   const[branches,setBranches]=useState([]);const[loading,setLoading]=useState(true);
-  useEffect(()=>{api.getBranches().then(b=>setBranches(b)).finally(()=>setLoading(false));},[]);
+  const[err,setErr]=useState("");
+  const[retryKey,setRetryKey]=useState(0);
+  useEffect(()=>{
+    let alive=true;
+    (async()=>{
+      setLoading(true);
+      setErr("");
+      try{
+        const b=await api.getBranches();
+        if(!alive)return;
+        setBranches(b);
+      }catch(e){
+        if(!alive)return;
+        setErr("เชื่อมต่อ Supabase ไม่ได้: "+e.message);
+      }finally{
+        if(!alive)return;
+        setLoading(false);
+      }
+    })();
+    return ()=>{alive=false;};
+  },[retryKey]);
   if(loading)return <><style>{globalStyle}</style><div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center"}}><Loading text="กำลังโหลดรายการสาขา..."/></div></>;
+  if(err)return <><style>{globalStyle}</style><div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",padding:24}}><ErrBox msg={err} onRetry={()=>setRetryKey(k=>k+1)}/></div></>;
   return <BranchSelector branches={branches} onSelect={onSelect} user={user}/>;
 }
 
