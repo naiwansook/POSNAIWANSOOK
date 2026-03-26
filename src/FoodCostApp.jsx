@@ -134,6 +134,7 @@ const ALL_PERMS=[
   {id:"view_sop",label:"ดู SOP",group:"SOP"},{id:"edit_sop",label:"แก้ไข SOP",group:"SOP"},
   {id:"view_summary",label:"ดูสรุปต้นทุน",group:"สรุปต้นทุน"},{id:"edit_summary",label:"บันทึกสรุปต้นทุน",group:"สรุปต้นทุน"},
   {id:"view_history",label:"ดูประวัติ",group:"ประวัติ"},{id:"view_orders",label:"ดูสั่งวัตถุดิบ",group:"สั่งวัตถุดิบ"},{id:"edit_orders",label:"แก้ไข/ส่งคำสั่งซื้อ",group:"สั่งวัตถุดิบ"},
+  {id:"view_pos",label:"ดู POS โต๊ะ",group:"POS"},{id:"edit_pos",label:"จัดการ POS โต๊ะ",group:"POS"},
   {id:"export",label:"Export ข้อมูล",group:"ระบบ"},{id:"settings",label:"ตั้งค่าระบบ",group:"ระบบ"},
 ];
 const ROLE_DEFAULT_PERMS={
@@ -142,7 +143,7 @@ const ROLE_DEFAULT_PERMS={
   staff:["view_ingredients","edit_ingredients","view_menus","edit_menus","view_sop","edit_sop","view_summary","edit_summary","view_history","view_orders","view_pos","edit_pos"],
   viewer:["view_ingredients","view_menus","view_sop","view_summary","view_history"],
 };
-function hasPerm(user,perm){return user&&(user.perms||ROLE_DEFAULT_PERMS[user.role]||[]).includes(perm);}
+function hasPerm(user,perm){return user&&((user.perms&&user.perms.length>0)?user.perms:ROLE_DEFAULT_PERMS[user.role]||[]).includes(perm);}
 const ROLES={admin:{label:"Admin",color:"purple"},manager:{label:"Manager",color:"blue"},staff:{label:"Staff",color:"green"},viewer:{label:"Viewer",color:"gray"}};
 const ppg=(price,gram)=>(gram>0?price/gram:0);
 const menuCost=(menu,ings)=>(menu.ingredients||[]).reduce((s,x)=>{const i=ings.find(g=>g.id===x.ingredientId);return s+(i?i.price_per_gram*x.amountGram:0);},0);
