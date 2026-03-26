@@ -1285,7 +1285,7 @@ function SettingsTab({ingCats,menuCats,reloadCats,users,reloadUsers,branches,rel
               <div style={{display:"flex",alignItems:"center",gap:10,padding:"10px 14px",background:"#F8FAFC",borderRadius:10,border:`1px solid ${C.line}`}}>
                 <div style={{width:8,height:8,borderRadius:"50%",background:C.green,boxShadow:`0 0 6px ${C.green}88`,flexShrink:0}}/>
                 <div>
-                  <div style={{fontSize:13,fontWeight:800,color:C.ink,fontFamily:"monospace",letterSpacing:.5}}>{p.ip}<span style={{color:C.ink4,fontWeight:400}>:{p.port||9100}</span></div>
+                  <div style={{fontSize:13,fontWeight:800,color:C.ink,fontFamily:"monospace",letterSpacing:.5}}>{p.ip}<span style={{color:C.ink4,fontWeight:400}}>{":"}{p.port||9100}</span></div>
                   <div style={{fontSize:11,color:C.ink4,fontFamily:"'Sarabun',sans-serif"}}>IP Address : Port</div>
                 </div>
               </div>
