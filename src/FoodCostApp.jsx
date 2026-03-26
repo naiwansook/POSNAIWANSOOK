@@ -5,9 +5,10 @@ const SUPA_URL = "https://niplvsfxynrufiyvbwme.supabase.co";
 const SUPA_KEY = "sb_publishable_jpym6Xg4gOIPWDUDt5IntQ_7Bbh9KcZ";
 
 async function sb(path, opts = {}) {
+  const {headers:extraH, prefer, ...fetchOpts} = opts;
   const res = await fetch(`${SUPA_URL}/rest/v1/${path}`, {
-    headers: { "apikey": SUPA_KEY, "Authorization": `Bearer ${SUPA_KEY}`, "Content-Type": "application/json", "Prefer": opts.prefer || "return=representation", ...opts.headers },
-    ...opts,
+    ...fetchOpts,
+    headers: { "apikey": SUPA_KEY, "Authorization": `Bearer ${SUPA_KEY}`, "Content-Type": "application/json", "Prefer": prefer || "return=representation", ...extraH },
   });
   if (!res.ok) throw new Error(await res.text());
   const text = await res.text();
@@ -41,7 +42,7 @@ const api = {
   deleteSupplier: (id) => sb(`suppliers?id=eq.${id}`, { method: "DELETE", headers: { "Prefer": "return=minimal" } }),
   getCostHist: (bid) => sb(`cost_history?order=id.desc&limit=50${bid ? `&branch_id=eq.${bid}` : ""}`),
   addCostHist: (d) => sb("cost_history", { method: "POST", body: JSON.stringify(d) }),
-  deleteCostHistItem: (id) => sb(`cost_history?id=eq.${id}`, {method:"DELETE", headers:{"Prefer":"return=minimal"}}),
+  deleteCostHistItem: (id) => sb(`cost_history?id=eq.${id}`, {method:"DELETE", prefer:"return=minimal"}),
   updateCostHistItem: (id,d) => sb(`cost_history?id=eq.${id}`, {method:"PATCH", body:JSON.stringify(d)}),
   getActionHist: () => sb("action_history?order=id.desc&limit=100"),
   addActionHist: (d) => sb("action_history", { method: "POST", body: JSON.stringify(d) }),
@@ -1086,7 +1087,7 @@ function HisTab({costHistory,actionHistory,reloadHistory,reloadAction,ings,curre
 
   function startEdit(snap){setEditSnap({id:snap.id,date_from:snap.date_from,date_to:snap.date_to,items:(snap.items||[]).map(i=>({...i}))});setSelSnap(null);}
   async function saveEdit(){if(!editSnap)return;setEditSaving(true);try{await api.updateCostHistItem(editSnap.id,{date_from:editSnap.date_from,date_to:editSnap.date_to,items:editSnap.items});await reloadHistory();setEditSnap(null);alert("✅ แก้ไขสำเร็จ");}catch(e){alert("บันทึกไม่สำเร็จ: "+e.message);}setEditSaving(false);}
-  async function deleteSnap(snap){if(!confirm(`ลบรายการ "${snap.date_from} → ${snap.date_to}"?`))return;try{await api.deleteCostHistItem(snap.id);await reloadHistory();}catch(e){alert("ลบไม่สำเร็จ");}}
+  async function deleteSnap(snap){if(!confirm(`ลบรายการ "${snap.date_from} → ${snap.date_to}"?`))return;try{await api.deleteCostHistItem(snap.id);await reloadHistory();}catch(e){alert("ลบไม่สำเร็จ: "+e.message);}}
 
   function exportCSV(snap){const rows=[["เมนู","ราคาขาย","ต้นทุน","กำไร%","ขายออก","รายรับ","กำไรสุทธิ"],...(snap.items||[]).map(i=>[i.name,i.price,i.cost?.toFixed(2),i.margin?.toFixed(1),i.soldQty,i.totalRevenue?.toFixed(0),i.totalProfit?.toFixed(0)])];const csv=rows.map(r=>r.join(",")).join("\n");const blob=new Blob(["\uFEFF"+csv],{type:"text/csv;charset=utf-8"});const u=URL.createObjectURL(blob);const a=document.createElement("a");a.href=u;a.download=`foodcost-${snap.date_from}_${snap.date_to}.csv`;a.click();URL.revokeObjectURL(u);}
   function printSnap(snap){const w=window.open("","_blank");const rows=(snap.items||[]).map(i=>`<tr><td>${i.name}</td><td>฿${i.price}</td><td>฿${i.cost?.toFixed(2)}</td><td>${i.margin?.toFixed(1)}%</td><td>${i.soldQty}</td><td>฿${i.totalRevenue?.toFixed(0)}</td><td>฿${i.totalProfit?.toFixed(0)}</td></tr>`).join("");w.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>สรุปต้นทุน</title><style>body{font-family:'Sarabun',sans-serif;padding:24px}h2{color:#FF6B35}table{width:100%;border-collapse:collapse;margin-top:16px}th,td{border:1px solid #ddd;padding:8px;font-size:13px}th{background:#f5f5f5;font-weight:700}@media print{.noprint{display:none}}</style></head><body><h2>NAIWANSOOK FOODCOST — สรุปต้นทุน</h2><p>สาขา: <b>${snap.branch_name||""}</b> | ${snap.date_from} ถึง ${snap.date_to} | บันทึกโดย: ${snap.saved_by}</p><table><thead><tr><th>เมนู</th><th>ราคาขาย</th><th>ต้นทุน</th><th>กำไร%</th><th>ขายออก</th><th>รายรับ</th><th>กำไรสุทธิ</th></tr></thead><tbody>${rows}</tbody></table><button class="noprint" onclick="window.print()">พิมพ์</button></body></html>`);w.document.close();setTimeout(()=>w.print(),600);}
