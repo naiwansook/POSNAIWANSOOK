@@ -134,6 +134,7 @@ const ALL_PERMS=[
   {id:"view_sop",label:"ดู SOP",group:"SOP"},{id:"edit_sop",label:"แก้ไข SOP",group:"SOP"},
   {id:"view_summary",label:"ดูสรุปต้นทุน",group:"สรุปต้นทุน"},{id:"edit_summary",label:"บันทึกสรุปต้นทุน",group:"สรุปต้นทุน"},
   {id:"view_history",label:"ดูประวัติ",group:"ประวัติ"},{id:"view_orders",label:"ดูสั่งวัตถุดิบ",group:"สั่งวัตถุดิบ"},{id:"edit_orders",label:"แก้ไข/ส่งคำสั่งซื้อ",group:"สั่งวัตถุดิบ"},
+  {id:"view_pos",label:"ดู POS โต๊ะ",group:"POS"},{id:"edit_pos",label:"จัดการ POS โต๊ะ",group:"POS"},
   {id:"export",label:"Export ข้อมูล",group:"ระบบ"},{id:"settings",label:"ตั้งค่าระบบ",group:"ระบบ"},
 ];
 const ROLE_DEFAULT_PERMS={
