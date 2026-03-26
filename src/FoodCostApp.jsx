@@ -843,19 +843,20 @@ function SumTab({menus,ings,currentBranch,reloadHistory,reloadOrders,currentUser
       try{
         const wb=XLSX.read(ev.target.result,{type:"array"});
         const ws=wb.Sheets[wb.SheetNames[0]];
-        const rows=XLSX.utils.sheet_to_json(ws,{defval:""});
-        if(!rows.length){alert("ไฟล์ว่างเปล่า");return;}
-        // หาคอลัมน์ชื่อเมนูและจำนวนขาย (flexible matching)
-        const keys=Object.keys(rows[0]);
-        const nameKey=keys.find(k=>/ชื่อ|เมนู|menu|name/i.test(k))||keys[0];
-        const qtyKey=keys.find(k=>/จำนวน|ขาย|qty|sold|count|sell|amount/i.test(k))||keys[1];
+        // อ่านเป็น array of arrays เพื่อดึงคอลัม B (index 1) และ G (index 6) ตรงๆ
+        const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:""});
+        if(rows.length<2){alert("ไฟล์ว่างเปล่าหรือมีแค่หัวตาราง");return;}
         const matched=[],unmatched=[];
         const newSel={...selected};
-        rows.forEach(row=>{
-          const rawName=String(row[nameKey]||"").trim();
-          const qty=+(String(row[qtyKey]||"0").replace(/,/g,""))||0;
+        // เริ่มจาก row index 1 (ข้ามแถวหัวตาราง)
+        rows.slice(1).forEach(row=>{
+          const rawName=String(row[1]||"").trim();   // คอลัม B
+          const qty=+(String(row[6]||"0").replace(/,/g,""))||0; // คอลัม G
           if(!rawName)return;
-          const menu=menus.find(m=>m.name.toLowerCase()===rawName.toLowerCase()||m.name.toLowerCase().includes(rawName.toLowerCase())||rawName.toLowerCase().includes(m.name.toLowerCase()));
+          // จับคู่ชื่อแบบตรงตัวก่อน แล้วค่อย partial match
+          const menu=menus.find(m=>m.name.toLowerCase()===rawName.toLowerCase())
+            ||menus.find(m=>rawName.toLowerCase().includes(m.name.toLowerCase()))
+            ||menus.find(m=>m.name.toLowerCase().includes(rawName.toLowerCase()));
           if(menu){newSel[menu.id]=(+(newSel[menu.id]||0))+qty;matched.push({name:rawName,menuName:menu.name,qty});}
           else unmatched.push({name:rawName,qty});
         });
@@ -949,9 +950,12 @@ function SumTab({menus,ings,currentBranch,reloadHistory,reloadOrders,currentUser
         </div>
       </div>}
       {xlsxResult.unmatched.length>0&&<div>
-        <div style={{fontSize:11,fontWeight:700,color:C.yellow,marginBottom:4,fontFamily:"'Sarabun',sans-serif"}}>ไม่พบในระบบ (ต้องเพิ่มเมนูก่อน):</div>
+        <div style={{fontSize:11,fontWeight:700,color:"#B45309",marginBottom:6,fontFamily:"'Sarabun',sans-serif"}}>⚠️ ไม่พบเมนูต่อไปนี้ในระบบ — กรุณาเพิ่มเมนูก่อนนำเข้าข้อมูล:</div>
         <div style={{display:"flex",gap:4,flexWrap:"wrap"}}>
-          {xlsxResult.unmatched.map((m,i)=><span key={i} style={{background:C.yellowLight,border:`1px solid ${C.yellow}44`,borderRadius:6,padding:"2px 8px",fontSize:11,color:"#92400E",fontFamily:"'Sarabun',sans-serif"}}>{m.name} ({m.qty})</span>)}
+          {xlsxResult.unmatched.map((m,i)=><div key={i} style={{background:"#FEF3C7",border:"1px solid #FCD34D",borderRadius:8,padding:"4px 10px",fontSize:11,fontFamily:"'Sarabun',sans-serif",display:"flex",alignItems:"center",gap:5}}>
+            <span style={{color:"#92400E",fontWeight:700}}>❌ {m.name}</span>
+            <span style={{color:"#B45309"}}>({m.qty} จาน)</span>
+          </div>)}
         </div>
       </div>}
     </div>}
