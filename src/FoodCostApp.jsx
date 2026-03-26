@@ -1273,50 +1273,115 @@ export default function App(){
 
   const isCentral=currentBranch.type==="central";
 
+  const sidebarW=240;
+  const accentColor=isCentral?C.teal:C.brand;
+  const accentDark=isCentral?"#0F766E":C.brandDark;
+
   return <>
     <style>{globalStyle}</style>
-    <div style={{minHeight:"100vh"}}>
-      <nav style={{background:C.white,borderBottom:`1px solid ${C.line}`,padding:"0 20px",display:"flex",alignItems:"center",position:"sticky",top:0,zIndex:100,height:62,boxShadow:"0 1px 16px rgba(15,23,42,.07)"}}>
-        <div style={{display:"flex",alignItems:"center",gap:10,marginRight:20,flexShrink:0}}>
-          <div style={{width:34,height:34,background:`linear-gradient(135deg,${isCentral?C.teal:C.brand},${isCentral?"#0F766E":C.brandDark})`,borderRadius:10,display:"flex",alignItems:"center",justifyContent:"center"}}><Ic d={isCentral?I.shop:I.fire} s={17} c={C.white} sw={2}/></div>
+    <div style={{display:"flex",minHeight:"100vh",background:"#F1F5F9"}}>
+
+      {/* ── SIDEBAR ── */}
+      <aside style={{width:sidebarW,background:"#0F172A",display:"flex",flexDirection:"column",position:"fixed",top:0,left:0,bottom:0,zIndex:200,overflowY:"auto"}}>
+
+        {/* Logo */}
+        <div style={{padding:"22px 18px 16px",borderBottom:"1px solid rgba(255,255,255,0.07)"}}>
+          <div style={{display:"flex",alignItems:"center",gap:11}}>
+            <div style={{width:38,height:38,background:`linear-gradient(135deg,${accentColor},${accentDark})`,borderRadius:11,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,boxShadow:`0 4px 14px ${accentColor}55`}}>
+              <Ic d={isCentral?I.shop:I.fire} s={18} c="#fff" sw={2}/>
+            </div>
+            <div>
+              <div style={{fontWeight:900,fontSize:13,color:"#F8FAFC",letterSpacing:-.2,lineHeight:1.2}}>NAIWANSOOK</div>
+              <div style={{fontSize:10,color:"rgba(255,255,255,0.35)",fontWeight:600,letterSpacing:1.5}}>FOODCOST</div>
+            </div>
+          </div>
+        </div>
+
+        {/* Branch badge */}
+        <div style={{padding:"12px 14px 8px"}}>
+          <div style={{background:"rgba(255,255,255,0.06)",borderRadius:10,padding:"9px 12px",border:"1px solid rgba(255,255,255,0.08)"}}>
+            <div style={{fontSize:9,color:"rgba(255,255,255,0.35)",fontWeight:700,letterSpacing:1.2,textTransform:"uppercase",marginBottom:2}}>สาขาปัจจุบัน</div>
+            <div style={{display:"flex",alignItems:"center",gap:6}}>
+              <Ic d={isCentral?I.shop:I.branch} s={13} c={accentColor}/>
+              <span style={{fontSize:13,fontWeight:800,color:"#F8FAFC",fontFamily:"'Sarabun',sans-serif"}}>{currentBranch.name}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Nav label */}
+        <div style={{padding:"10px 18px 5px"}}>
+          <span style={{fontSize:9,fontWeight:700,color:"rgba(255,255,255,0.25)",letterSpacing:1.5,textTransform:"uppercase"}}>เมนูหลัก</span>
+        </div>
+
+        {/* Nav items */}
+        <nav style={{flex:1,padding:"0 10px 10px"}}>
+          {visibleTabs.map(t2=>{
+            const active=tab===t2.id;
+            return <button key={t2.id} onClick={()=>setTab(t2.id)} style={{display:"flex",alignItems:"center",gap:10,width:"100%",padding:"10px 12px",marginBottom:2,borderRadius:10,border:"none",cursor:"pointer",background:active?`rgba(${isCentral?"20,184,166":"255,107,53"},0.18)`:"transparent",transition:"all .15s",textAlign:"left",fontFamily:"'Sarabun',sans-serif"}}>
+              <div style={{width:30,height:30,borderRadius:8,background:active?`rgba(${isCentral?"20,184,166":"255,107,53"},0.25)`:"rgba(255,255,255,0.05)",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,transition:"all .15s"}}>
+                <Ic d={t2.icon} s={14} c={active?accentColor:"rgba(255,255,255,0.45)"}/>
+              </div>
+              <span style={{fontSize:13,fontWeight:active?700:400,color:active?"#F8FAFC":"rgba(255,255,255,0.55)",transition:"all .15s"}}>{t2.l}</span>
+              {active&&<div style={{marginLeft:"auto",width:4,height:4,borderRadius:"50%",background:accentColor}}/>}
+            </button>;
+          })}
+        </nav>
+
+        {/* User section */}
+        <div style={{padding:"12px 14px 20px",borderTop:"1px solid rgba(255,255,255,0.07)"}}>
+          <div style={{display:"flex",alignItems:"center",gap:9,padding:"8px 10px",background:"rgba(255,255,255,0.05)",borderRadius:10,marginBottom:8}}>
+            <div style={{width:32,height:32,borderRadius:"50%",background:`linear-gradient(135deg,${accentColor},${accentDark})`,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+              <Ic d={I.user} s={14} c="#fff"/>
+            </div>
+            <div style={{minWidth:0}}>
+              <div style={{fontSize:12,fontWeight:700,color:"#F8FAFC",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{currentUser.name||currentUser.username}</div>
+              <div style={{fontSize:10,color:"rgba(255,255,255,0.4)"}}>{ROLES[currentUser.role]?.label||currentUser.role}</div>
+            </div>
+          </div>
+          <div style={{display:"flex",gap:6}}>
+            <button onClick={()=>setCurrentBranch(null)} style={{flex:1,background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:8,padding:"7px 0",cursor:"pointer",fontSize:11,color:"rgba(255,255,255,0.6)",fontFamily:"'Sarabun',sans-serif",fontWeight:600,display:"flex",alignItems:"center",justifyContent:"center",gap:4,transition:"background .15s"}}>
+              <Ic d={I.branch} s={11} c="rgba(255,255,255,0.5)"/>เปลี่ยนสาขา
+            </button>
+            <button onClick={()=>{setCurrentUser(null);setCurrentBranch(null);}} title="ออกจากระบบ" style={{background:"rgba(239,68,68,0.15)",border:"1px solid rgba(239,68,68,0.25)",borderRadius:8,padding:"7px 10px",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",transition:"background .15s"}}>
+              <Ic d={I.logout} s={13} c="#F87171"/>
+            </button>
+          </div>
+        </div>
+      </aside>
+
+      {/* ── MAIN CONTENT ── */}
+      <main style={{marginLeft:sidebarW,flex:1,minWidth:0,display:"flex",flexDirection:"column"}}>
+
+        {/* Top bar */}
+        <div style={{background:"#fff",borderBottom:"1px solid #E2E8F0",padding:"0 28px",height:58,display:"flex",alignItems:"center",justifyContent:"space-between",position:"sticky",top:0,zIndex:100,boxShadow:"0 1px 3px rgba(15,23,42,0.05)"}}>
           <div>
-            <div style={{fontWeight:900,fontSize:12,color:C.ink,lineHeight:1,letterSpacing:-.2}}>NAIWANSOOK FOODCOST</div>
-            <div style={{fontSize:9,color:C.ink4,fontWeight:600,letterSpacing:1.2}}>BY BOSSMAX</div>
+            <h1 style={{fontSize:18,fontWeight:800,color:"#0F172A",margin:0,letterSpacing:-.3}}>{visibleTabs.find(t2=>t2.id===tab)?.l}</h1>
+            <p style={{fontSize:12,color:"#94A3B8",margin:0}}>{DESC[tab]}</p>
+          </div>
+          <div style={{display:"flex",alignItems:"center",gap:6}}>
+            <div style={{background:`linear-gradient(135deg,${accentColor}18,${accentColor}0a)`,border:`1px solid ${accentColor}30`,borderRadius:8,padding:"5px 12px",display:"flex",alignItems:"center",gap:5}}>
+              <div style={{width:7,height:7,borderRadius:"50%",background:accentColor}}/>
+              <span style={{fontSize:11,fontWeight:700,color:accentColor,fontFamily:"'Sarabun',sans-serif"}}>BY BOSSMAX</span>
+            </div>
           </div>
         </div>
-        <div style={{display:"flex",flex:1,overflowX:"auto",gap:1}}>
-          {visibleTabs.map(t2=>{const active=tab===t2.id;return <button key={t2.id} onClick={()=>setTab(t2.id)} style={{display:"flex",alignItems:"center",gap:6,padding:"0 12px",height:62,border:"none",background:"none",cursor:"pointer",fontSize:12,fontWeight:active?800:500,color:active?(isCentral?C.teal:C.brand):C.ink3,fontFamily:"'Sarabun',sans-serif",borderBottom:active?`2.5px solid ${isCentral?C.teal:C.brand}`:"2.5px solid transparent",transition:"all .15s",whiteSpace:"nowrap"}}><Ic d={t2.icon} s={13} c={active?(isCentral?C.teal:C.brand):C.ink4}/>{t2.l}</button>;})}
+
+        {/* Page content */}
+        <div style={{flex:1,padding:"24px 28px 56px"}}>
+          {initErr&&<ErrBox msg={initErr} onRetry={loadAll}/>}
+          {loading?<Loading text="กำลังโหลดข้อมูลจาก Cloud..."/>:<>
+            {tab==="ingredients"&&<IngTab ings={ings} reload={reload.ings} ingCats={ingCats} suppliers={suppliers} currentUser={currentUser} currentBranch={currentBranch} addH={addH}/>}
+            {tab==="menus"&&<MenuTab menus={menus} reload={reload.menus} ings={ings} menuCats={menuCats} currentUser={currentUser} currentBranch={currentBranch} addH={addH}/>}
+            {tab==="sop"&&<SOPTab menus={menus} reload={reload.menus} ings={ings} currentUser={currentUser}/>}
+            {tab==="summary"&&<SumTab menus={menus} ings={ings} currentBranch={currentBranch} reloadHistory={reload.history} reloadOrders={reload.orders} currentUser={currentUser}/>}
+            {tab==="orders"&&<OrderTab orders={orders} allOrders={allOrders} reload={reload.orders} ings={ings} suppliers={suppliers} currentBranch={currentBranch} currentUser={currentUser}/>}
+            {tab==="history"&&<HisTab costHistory={costHistory} actionHistory={actionHistory} reloadHistory={reload.history} reloadAction={reload.action} ings={ings} currentBranch={currentBranch} reloadOrders={reload.orders} currentUser={currentUser}/>}
+            {tab==="pos"&&<POSTab menus={menus} currentBranch={currentBranch} currentUser={currentUser}/>}
+            {tab==="settings"&&<SettingsTab ingCats={ingCats} menuCats={menuCats} reloadCats={reload.cats} users={users} reloadUsers={reload.users} branches={branches} reloadBranches={reload.branches} suppliers={suppliers} reloadSuppliers={reload.suppliers} currentUser={currentUser}/>}
+          </>}
         </div>
-        <div style={{display:"flex",alignItems:"center",gap:8,flexShrink:0}}>
-          <div style={{background:isCentral?C.tealLight:C.brandLight,borderRadius:8,padding:"4px 10px",display:"flex",alignItems:"center",gap:5}}>
-            <Ic d={isCentral?I.shop:I.branch} s={12} c={isCentral?C.teal:C.brand}/>
-            <span style={{fontSize:11,fontWeight:700,color:isCentral?C.teal:C.brand,fontFamily:"'Sarabun',sans-serif"}}>{currentBranch.name}</span>
-          </div>
-          <div style={{display:"flex",alignItems:"center",gap:5,background:C.bg,borderRadius:8,padding:"4px 10px",border:`1px solid ${C.line}`}}>
-            <div style={{width:20,height:20,borderRadius:"50%",background:`linear-gradient(135deg,${C.brand},${C.brandDark})`,display:"flex",alignItems:"center",justifyContent:"center"}}><Ic d={I.user} s={10} c={C.white}/></div>
-            <span style={{fontSize:11,fontWeight:700,color:C.ink,fontFamily:"'Sarabun',sans-serif"}}>{currentUser.name||currentUser.username}</span>
-          </div>
-          <button onClick={()=>setCurrentBranch(null)} title="เปลี่ยนสาขา" style={{background:C.lineLight,border:`1px solid ${C.line}`,borderRadius:8,padding:"6px 10px",cursor:"pointer",fontSize:11,color:C.ink3,fontFamily:"'Sarabun',sans-serif",display:"flex",alignItems:"center",gap:4,fontWeight:600}}><Ic d={I.branch} s={13} c={C.ink3}/>เปลี่ยนสาขา</button>
-          <button onClick={()=>{setCurrentUser(null);setCurrentBranch(null);}} title="ออกจากระบบ" style={{background:C.redLight,border:"none",borderRadius:8,padding:"7px",cursor:"pointer",display:"flex"}}><Ic d={I.logout} s={14} c={C.red}/></button>
-        </div>
-      </nav>
-      <div style={{maxWidth:1300,margin:"0 auto",padding:"20px 20px 56px"}}>
-        {initErr&&<ErrBox msg={initErr} onRetry={loadAll}/>}
-        {loading?<Loading text="กำลังโหลดข้อมูลจาก Cloud..."/>:<>
-          <div style={{marginBottom:18}}>
-            <h1 style={{fontSize:24,fontWeight:900,color:C.ink,marginBottom:3,letterSpacing:-.3}}>{visibleTabs.find(t2=>t2.id===tab)?.l}</h1>
-            <p style={{fontSize:13,color:C.ink3}}>{DESC[tab]}</p>
-          </div>
-          {tab==="ingredients"&&<IngTab ings={ings} reload={reload.ings} ingCats={ingCats} suppliers={suppliers} currentUser={currentUser} currentBranch={currentBranch} addH={addH}/>}
-          {tab==="menus"&&<MenuTab menus={menus} reload={reload.menus} ings={ings} menuCats={menuCats} currentUser={currentUser} currentBranch={currentBranch} addH={addH}/>}
-          {tab==="sop"&&<SOPTab menus={menus} reload={reload.menus} ings={ings} currentUser={currentUser}/>}
-          {tab==="summary"&&<SumTab menus={menus} ings={ings} currentBranch={currentBranch} reloadHistory={reload.history} reloadOrders={reload.orders} currentUser={currentUser}/>}
-          {tab==="orders"&&<OrderTab orders={orders} allOrders={allOrders} reload={reload.orders} ings={ings} suppliers={suppliers} currentBranch={currentBranch} currentUser={currentUser}/>}
-          {tab==="history"&&<HisTab costHistory={costHistory} actionHistory={actionHistory} reloadHistory={reload.history} reloadAction={reload.action} ings={ings} currentBranch={currentBranch} reloadOrders={reload.orders} currentUser={currentUser}/>}
-          {tab==="pos"&&<POSTab menus={menus} currentBranch={currentBranch} currentUser={currentUser}/>}
-          {tab==="settings"&&<SettingsTab ingCats={ingCats} menuCats={menuCats} reloadCats={reload.cats} users={users} reloadUsers={reload.users} branches={branches} reloadBranches={reload.branches} suppliers={suppliers} reloadSuppliers={reload.suppliers} currentUser={currentUser}/>}
-        </>}
-      </div>
+      </main>
+
     </div>
   </>;
 }
