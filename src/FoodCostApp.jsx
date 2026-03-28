@@ -140,20 +140,21 @@ const I = {
 };
 
 const ALL_PERMS=[
-  {id:"view_ingredients",label:"ดูวัตถุดิบ",group:"วัตถุดิบ"},{id:"edit_ingredients",label:"แก้ไขวัตถุดิบ",group:"วัตถุดิบ"},{id:"delete_ingredients",label:"ลบวัตถุดิบ",group:"วัตถุดิบ"},
-  {id:"view_menus",label:"ดูเมนู",group:"เมนู"},{id:"edit_menus",label:"แก้ไขเมนู",group:"เมนู"},{id:"delete_menus",label:"ลบเมนู",group:"เมนู"},
-  {id:"view_sop",label:"ดู SOP",group:"SOP"},{id:"edit_sop",label:"แก้ไข SOP",group:"SOP"},
-  {id:"view_summary",label:"ดูสรุปต้นทุน",group:"สรุปต้นทุน"},{id:"edit_summary",label:"บันทึกสรุปต้นทุน",group:"สรุปต้นทุน"},
-  {id:"view_history",label:"ดูประวัติ",group:"ประวัติ"},{id:"view_orders",label:"ดูสั่งวัตถุดิบ",group:"สั่งวัตถุดิบ"},{id:"edit_orders",label:"แก้ไข/ส่งคำสั่งซื้อ",group:"สั่งวัตถุดิบ"},
-  {id:"view_suppliers",label:"ดูซัพพลาย",group:"ซัพพลาย"},{id:"edit_suppliers",label:"แก้ไขซัพพลาย",group:"ซัพพลาย"},
-  {id:"view_pos",label:"ดู POS โต๊ะ",group:"POS"},{id:"edit_pos",label:"จัดการ POS โต๊ะ",group:"POS"},
-  {id:"export",label:"Export ข้อมูล",group:"ระบบ"},{id:"settings",label:"ตั้งค่าระบบ",group:"ระบบ"},
+  {id:"pos",label:"ขายหน้าร้าน"},
+  {id:"ingredients",label:"วัตถุดิบ"},
+  {id:"menus",label:"เมนู"},
+  {id:"sop",label:"SOP"},
+  {id:"summary",label:"สรุปต้นทุน"},
+  {id:"orders",label:"สั่งวัตถุดิบ"},
+  {id:"history",label:"ประวัติต้นทุน"},
+  {id:"suppliers",label:"ซัพพลาย"},
+  {id:"settings",label:"ตั้งค่า"},
 ];
 const ROLE_DEFAULT_PERMS={
   admin:ALL_PERMS.map(p=>p.id),
-  manager:["view_ingredients","edit_ingredients","delete_ingredients","view_menus","edit_menus","delete_menus","view_sop","edit_sop","view_summary","edit_summary","view_history","view_orders","edit_orders","export","view_pos","edit_pos","view_suppliers","edit_suppliers"],
-  staff:["view_ingredients","edit_ingredients","view_menus","edit_menus","view_sop","edit_sop","view_summary","edit_summary","view_history","view_orders","view_pos","edit_pos","view_suppliers"],
-  viewer:["view_ingredients","view_menus","view_sop","view_summary","view_history"],
+  manager:["pos","ingredients","menus","sop","summary","orders","history","suppliers"],
+  staff:["pos","ingredients","menus","sop","summary","orders","history","suppliers"],
+  viewer:["pos","menus","sop"],
 };
 function hasPerm(user,perm){if(!user)return false;if(user.role==="admin")return true;return((user.perms&&user.perms.length>0)?user.perms:ROLE_DEFAULT_PERMS[user.role]||[]).includes(perm);}
 const ROLES={admin:{label:"Admin",color:"purple"},manager:{label:"Manager",color:"blue"},staff:{label:"Staff",color:"green"},viewer:{label:"Viewer",color:"gray"}};
@@ -547,7 +548,7 @@ function IngTab({ings,reload,ingCats,suppliers,currentUser,currentBranch,addH,br
   const ef={name:"",category:ingCats[0]?.name||"",buy_unit:"กก.",buy_amount:1,buy_price:"",convert_to_gram:1000,price_per_gram:0,stock:"",image:null,note:"",supplier_id:"",supplier_name:""};
   const[form,setForm]=useState(ef);
   const isCentral=currentBranch?.type==="central";
-  const canE=hasPerm(currentUser,"edit_ingredients")&&isCentral;const canD=hasPerm(currentUser,"delete_ingredients")&&isCentral;
+  const canE=hasPerm(currentUser,"ingredients")&&isCentral;const canD=hasPerm(currentUser,"ingredients")&&isCentral;
   const filtered=useMemo(()=>ings.filter(i=>{const vb=i.visible_branches||[];const matchB=isCentral||vb.length===0||vb.includes(currentBranch?.id);return i.name.toLowerCase().includes(q.toLowerCase())&&(cat==="ทุกหมวด"||i.category===cat)&&matchB;}),[ings,q,cat,isCentral,currentBranch]);
   const paged=useMemo(()=>filtered.slice(0,pg*PG),[filtered,pg]);
   function upd(k,val){setForm(f=>{const n={...f,[k]:val};if(k==="buy_price"||k==="convert_to_gram")n.price_per_gram=ppg(+(k==="buy_price"?val:n.buy_price)||0,+(k==="convert_to_gram"?val:n.convert_to_gram)||1);if(k==="supplier_id"){const sup=suppliers.find(s=>String(s.id)===String(val));n.supplier_name=sup?sup.name:"";}return n;});}
@@ -640,7 +641,7 @@ function MenuTab({menus,reload,ings,menuCats,currentUser,currentBranch,addH,prin
   const[form,setForm]=useState({name:"",category:"",price:"",description:"",image:null,ingredients:[],sop:[]});
   const[ingQ,setIngQ]=useState("");const[ni,setNi]=useState({ingredientId:"",amountGram:""});
   const isCentral=currentBranch?.type==="central";
-  const canE=hasPerm(currentUser,"edit_menus")&&isCentral;const canD=hasPerm(currentUser,"delete_menus")&&isCentral;
+  const canE=hasPerm(currentUser,"menus")&&isCentral;const canD=hasPerm(currentUser,"menus")&&isCentral;
   const localCats=useMemo(()=>allCats.filter(c=>c.type==="menu"&&(isCentral?!c.branch_id:c.branch_id===currentBranch?.id)),[allCats,isCentral,currentBranch]);
   async function toggleAvailability(menu,status){
     const avail={...(menu.availability||{})};
@@ -801,7 +802,7 @@ function SOPTab({menus,reload,ings,currentUser,currentBranch}){
   const visibleMenus=useMemo(()=>menus.filter(m=>{const vb=m.visible_branches||[];return isCentral||vb.length===0||vb.includes(currentBranch?.id);}),[menus,isCentral,currentBranch]);
   const[sel,setSel]=useState(visibleMenus[0]?.id??null);const[edit,setEdit]=useState(false);const[sop,setSop]=useState([]);const[saving,setSaving]=useState(false);const[ingQ,setIngQ]=useState("");
   const menu=useMemo(()=>visibleMenus.find(m=>m.id===sel),[visibleMenus,sel]);
-  const canE=hasPerm(currentUser,"edit_sop")&&isCentral;
+  const canE=hasPerm(currentUser,"sop")&&isCentral;
   useEffect(()=>{if(menu){setSop(menu.sop?[...menu.sop.map(s=>({...s}))]:[]); setEdit(false);}}, [sel]);
   async function saveSop(){setSaving(true);try{await api.updateMenu(sel,{sop,edit_by:currentUser.username,edit_at:nowStr()});await reload();setEdit(false);}catch(e){alert("บันทึกไม่สำเร็จ: "+e.message);}setSaving(false);}
   const filteredIngs=useMemo(()=>ings.filter(i=>i.name.toLowerCase().includes(ingQ.toLowerCase())),[ings,ingQ]);
@@ -881,7 +882,7 @@ function SumTab({menus,ings,currentBranch,reloadHistory,reloadOrders,currentUser
   const[saving,setSaving]=useState(false);const[sendingOrder,setSendingOrder]=useState(false);
   const[xlsxResult,setXlsxResult]=useState(null); // {matched, unmatched}
   const xlsxRef=useRef();
-  const canE=hasPerm(currentUser,"edit_summary");const canOrder=hasPerm(currentUser,"edit_orders");
+  const canE=hasPerm(currentUser,"summary");const canOrder=hasPerm(currentUser,"orders");
 
   function handleXlsxUpload(e){
     const file=e.target.files?.[0];if(!file)return;
@@ -1056,7 +1057,7 @@ function OrderTab({orders,allOrders,reload,ings,suppliers,currentBranch,currentU
   const[view,setView]=useState(isCentral?"all":"mine");
   const[editOrder,setEditOrder]=useState(null);
   const[saving,setSaving]=useState(false);
-  const canOrder=hasPerm(currentUser,"edit_orders");
+  const canOrder=hasPerm(currentUser,"orders");
 
   const displayOrders=isCentral?(view==="all"?allOrders:orders):orders;
 
@@ -1128,7 +1129,7 @@ function HisTab({costHistory,actionHistory,reloadHistory,reloadAction,ings,curre
   const[view,setView]=useState("cost");const[selSnap,setSelSnap]=useState(null);const[sendingOrder,setSendingOrder]=useState(null);
   const[editSnap,setEditSnap]=useState(null); // {id, date_from, date_to, items:[...]}
   const[editSaving,setEditSaving]=useState(false);
-  const canOrder=hasPerm(currentUser,"edit_orders");const canE=hasPerm(currentUser,"edit_summary");
+  const canOrder=hasPerm(currentUser,"orders");const canE=hasPerm(currentUser,"history");
 
   function startEdit(snap){setEditSnap({id:snap.id,date_from:snap.date_from,date_to:snap.date_to,items:(snap.items||[]).map(i=>({...i}))});setSelSnap(null);}
   async function saveEdit(){if(!editSnap)return;setEditSaving(true);try{await api.updateCostHistItem(editSnap.id,{date_from:editSnap.date_from,date_to:editSnap.date_to,items:editSnap.items});await reloadHistory();setEditSnap(null);alert("✅ แก้ไขสำเร็จ");}catch(e){alert("บันทึกไม่สำเร็จ: "+e.message);}setEditSaving(false);}
@@ -1252,7 +1253,7 @@ function HisTab({costHistory,actionHistory,reloadHistory,reloadAction,ings,curre
 function SupplierTab({suppliers,reloadSuppliers,currentUser}){
   const[supForm,setSupForm]=useState({name:"",contact:"",phone:"",note:"",active:true});
   const[editSID,setEditSID]=useState(null);
-  const canE=hasPerm(currentUser,"edit_suppliers");
+  const canE=hasPerm(currentUser,"suppliers");
   async function saveSup(){
     if(!supForm.name)return;
     try{if(editSID)await api.updateSupplier(editSID,supForm);else await api.addSupplier(supForm);await reloadSuppliers();setSupForm({name:"",contact:"",phone:"",note:"",active:true});setEditSID(null);}
@@ -1302,7 +1303,6 @@ function SettingsTab({ingCats,menuCats,reloadCats,users,reloadUsers,branches,rel
   const pF0={name:"",ip:"",port:9100,description:"",type:"kitchen",branch_id:null,active:true};
   const[pForm,setPForm]=useState(pF0);const[editPID,setEditPID]=useState(null);const[pSaving,setPSaving]=useState(false);
   const isAdmin=hasPerm(currentUser,"settings");
-  const permGroups=useMemo(()=>{const g={};ALL_PERMS.forEach(p=>{(g[p.group]||(g[p.group]=[])).push(p);});return g;},[]);
 
   async function saveUser(){if(!uF.username||!uF.password)return;setSaving(true);try{if(editUID)await api.updateUser(editUID,uF);else await api.addUser(uF);await reloadUsers();setShowUser(false);setEditUID(null);setUF(uF0);}catch(e){alert("บันทึกไม่สำเร็จ: "+e.message);}setSaving(false);}
   async function saveBranch(){if(!branchForm.name)return;try{if(editBID)await api.updateBranch(editBID,branchForm);else await api.addBranch(branchForm);await reloadBranches();setBranchForm({name:"",type:"branch",active:true});setEditBID(null);}catch(e){alert("บันทึกไม่สำเร็จ");};}
@@ -1497,17 +1497,13 @@ function SettingsTab({ingCats,menuCats,reloadCats,users,reloadUsers,branches,rel
           <div style={{display:"flex",gap:8}}>{[{v:true,l:"ใช้งาน"},{v:false,l:"ปิดใช้"}].map(o=><button key={String(o.v)} onClick={()=>setUF(f=>({...f,active:o.v}))} style={{padding:"6px 14px",borderRadius:8,border:`2px solid ${uF.active===o.v?C.brand:C.line}`,background:uF.active===o.v?C.brandLight:C.white,cursor:"pointer",fontFamily:"'Sarabun',sans-serif",fontWeight:700,fontSize:13,color:uF.active===o.v?C.brand:C.ink3}}>{o.l}</button>)}</div>
         </div>
         <div>
-          <div style={{fontSize:13,fontWeight:700,color:C.ink2,marginBottom:8,fontFamily:"'Sarabun',sans-serif"}}>สิทธิ์ ({(uF.perms||[]).length}/{ALL_PERMS.length})</div>
-          <div style={{maxHeight:340,overflowY:"auto",background:C.bg,borderRadius:12,padding:"10px",border:`1px solid ${C.line}`}}>
-            {Object.entries(permGroups).map(([group,perms])=>(
-              <div key={group} style={{marginBottom:12}}>
-                <div style={{fontSize:10,fontWeight:800,color:C.ink3,textTransform:"uppercase",letterSpacing:1,marginBottom:5,fontFamily:"'Sarabun',sans-serif"}}>{group}</div>
-                {perms.map(p=>{const has=(uF.perms||[]).includes(p.id);return <label key={p.id} style={{display:"flex",alignItems:"center",gap:8,padding:"6px 10px",borderRadius:8,cursor:"pointer",background:has?C.brandLight:C.white,marginBottom:3,border:`1px solid ${has?C.brandBorder:C.line}`}}>
-                  <input type="checkbox" checked={has} onChange={()=>setUF(f=>{const ps=f.perms||[];return{...f,perms:ps.includes(p.id)?ps.filter(x=>x!==p.id):[...ps,p.id]};})} style={{accentColor:C.brand,width:14,height:14}}/>
-                  <span style={{fontSize:13,fontFamily:"'Sarabun',sans-serif",fontWeight:has?700:400,color:has?C.brand:C.ink2}}>{p.label}</span>
-                </label>;})}
-              </div>
-            ))}
+          <div style={{fontSize:13,fontWeight:700,color:C.ink2,marginBottom:8,fontFamily:"'Sarabun',sans-serif"}}>เมนูที่เข้าถึงได้ ({(uF.perms||[]).length}/{ALL_PERMS.length})</div>
+          <div style={{background:C.bg,borderRadius:12,padding:"10px",border:`1px solid ${C.line}`}}>
+            {ALL_PERMS.map(p=>{const has=(uF.perms||[]).includes(p.id);return <label key={p.id} style={{display:"flex",alignItems:"center",gap:10,padding:"8px 12px",borderRadius:10,cursor:"pointer",background:has?C.brandLight:C.white,marginBottom:4,border:`1.5px solid ${has?C.brandBorder:C.line}`,transition:"all .15s"}}>
+              <input type="checkbox" checked={has} onChange={()=>setUF(f=>{const ps=f.perms||[];return{...f,perms:ps.includes(p.id)?ps.filter(x=>x!==p.id):[...ps,p.id]};})} style={{accentColor:C.brand,width:16,height:16}}/>
+              <span style={{fontSize:14,fontFamily:"'Sarabun',sans-serif",fontWeight:has?700:400,color:has?C.brand:C.ink2}}>{p.label}</span>
+              {has&&<span style={{marginLeft:"auto",fontSize:11,color:C.green,fontWeight:700}}>✓ เข้าถึงได้</span>}
+            </label>;})}
           </div>
         </div>
       </div>
@@ -1575,14 +1571,14 @@ export default function App(){
   const addH=useCallback(async a=>{try{await api.addActionHist({action:a,time:nowStr()});await reload.action();}catch{}},[currentBranch]);
 
   const TABS=[
-    {id:"pos",l:"ขายหน้าร้าน",icon:I.table,perm:"view_pos"},
-    {id:"ingredients",l:"วัตถุดิบ",icon:I.leaf,perm:"view_ingredients"},
-    {id:"menus",l:"เมนู",icon:I.fire,perm:"view_menus"},
-    {id:"sop",l:"SOP",icon:I.sop,perm:"view_sop"},
-    {id:"summary",l:"สรุปต้นทุน",icon:I.chart,perm:"view_summary"},
-    {id:"orders",l:"สั่งวัตถุดิบ",icon:I.truck,perm:"view_orders"},
-    {id:"history",l:"ประวัติต้นทุน",icon:I.clock,perm:"view_history"},
-    {id:"suppliers",l:"ซัพพลาย",icon:I.truck,perm:"view_suppliers"},
+    {id:"pos",l:"ขายหน้าร้าน",icon:I.table,perm:"pos"},
+    {id:"ingredients",l:"วัตถุดิบ",icon:I.leaf,perm:"ingredients"},
+    {id:"menus",l:"เมนู",icon:I.fire,perm:"menus"},
+    {id:"sop",l:"SOP",icon:I.sop,perm:"sop"},
+    {id:"summary",l:"สรุปต้นทุน",icon:I.chart,perm:"summary"},
+    {id:"orders",l:"สั่งวัตถุดิบ",icon:I.truck,perm:"orders"},
+    {id:"history",l:"ประวัติต้นทุน",icon:I.clock,perm:"history"},
+    {id:"suppliers",l:"ซัพพลาย",icon:I.truck,perm:"suppliers"},
     {id:"settings",l:"ตั้งค่า",icon:I.settings,perm:"settings"},
   ];
   const visibleTabs=TABS.filter(t=>currentUser&&hasPerm(currentUser,t.perm));
@@ -2175,7 +2171,7 @@ function POSTab({menus,currentBranch,currentUser,printers=[]}){
   const[selTable,setSelTable]=useState(null);const[selOrder,setSelOrder]=useState(null);
   const[showManage,setShowManage]=useState(false);
   const timerRef=useRef(null);
-  const canEdit=hasPerm(currentUser,"edit_pos");
+  const canEdit=hasPerm(currentUser,"pos");
 
   async function loadTables(){const t=await api.getPOSTables(currentBranch.id);setTables(t);}
   async function loadOrders(){const o=await api.getActiveOrders(currentBranch.id);setActiveOrders(o);}
