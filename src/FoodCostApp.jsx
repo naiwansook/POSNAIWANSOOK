@@ -543,12 +543,16 @@ function ImportMenuModal({onClose,menuCats,currentUser,currentBranch,onDone}){
 // ══════════════════════════════════════════════════════
 // ── INGREDIENT TAB ────────────────────────────────────
 // ══════════════════════════════════════════════════════
-function IngTab({ings,reload,ingCats,suppliers,currentUser,currentBranch,addH,branches=[]}){
+function IngTab({ings,reload,ingCats,suppliers,currentUser,currentBranch,addH,branches=[],reloadCats}){
   const[q,setQ]=useState("");const[cat,setCat]=useState("ทุกหมวด");const[open,setOpen]=useState(false);const[editId,setEditId]=useState(null);const[saving,setSaving]=useState(false);const[pg,setPg]=useState(1);const PG=18;const[showImport,setShowImport]=useState(false);
+  const[editingCatId,setEditingCatId]=useState(null);const[editingCatName,setEditingCatName]=useState("");const[newCatName,setNewCatName]=useState("");const[addingCat,setAddingCat]=useState(false);
   const ef={name:"",category:ingCats[0]?.name||"",buy_unit:"กก.",buy_amount:1,buy_price:"",convert_to_gram:1000,price_per_gram:0,stock:"",image:null,note:"",supplier_id:"",supplier_name:""};
   const[form,setForm]=useState(ef);
   const isCentral=currentBranch?.type==="central";
   const canE=hasPerm(currentUser,"ingredients")&&isCentral;const canD=hasPerm(currentUser,"ingredients")&&isCentral;
+  async function addCat(){if(!newCatName.trim())return;try{await api.addCat({type:"ingredient",name:newCatName.trim()});await reloadCats();setNewCatName("");setAddingCat(false);}catch(e){alert("บันทึกไม่สำเร็จ: "+e.message);}}
+  async function saveCatRename(){if(!editingCatName.trim()||!editingCatId)return;try{await api.updateCat(editingCatId,{name:editingCatName.trim()});await reloadCats();setEditingCatId(null);}catch(e){alert("บันทึกไม่สำเร็จ: "+e.message);}}
+  async function delCat(c){if(!confirm(`ลบหมวด "${c.name}"?`))return;try{await api.deleteCat(c.id);await reloadCats();if(cat===c.name)setCat("ทุกหมวด");}catch(e){alert("ลบไม่สำเร็จ: "+e.message);}}
   const filtered=useMemo(()=>ings.filter(i=>{const vb=i.visible_branches||[];const matchB=isCentral||vb.length===0||vb.includes(currentBranch?.id);return i.name.toLowerCase().includes(q.toLowerCase())&&(cat==="ทุกหมวด"||i.category===cat)&&matchB;}),[ings,q,cat,isCentral,currentBranch]);
   const paged=useMemo(()=>filtered.slice(0,pg*PG),[filtered,pg]);
   function upd(k,val){setForm(f=>{const n={...f,[k]:val};if(k==="buy_price"||k==="convert_to_gram")n.price_per_gram=ppg(+(k==="buy_price"?val:n.buy_price)||0,+(k==="convert_to_gram"?val:n.convert_to_gram)||1);if(k==="supplier_id"){const sup=suppliers.find(s=>String(s.id)===String(val));n.supplier_name=sup?sup.name:"";}return n;});}
@@ -557,9 +561,27 @@ function IngTab({ings,reload,ingCats,suppliers,currentUser,currentBranch,addH,br
   async function toggleVBIng(item,branchId){const nonCB=branches.filter(b=>b.type!=="central");let vb=[...(item.visible_branches||[])];if(vb.length===0){vb=nonCB.map(b=>b.id).filter(id=>id!==branchId);}else{const idx=vb.indexOf(branchId);if(idx===-1)vb.push(branchId);else vb.splice(idx,1);if(vb.length===nonCB.length)vb=[];}try{await api.updateIng(item.id,{visible_branches:vb});await reload();}catch{alert("บันทึกไม่สำเร็จ");}}
   return <div>
     {!isCentral&&<div style={{background:"#FFF7ED",border:"1px solid #FED7AA",borderRadius:12,padding:"12px 16px",marginBottom:16,display:"flex",alignItems:"center",gap:10}}><Ic d={I.warning} s={16} c="#F59E0B"/><span style={{fontSize:13,color:"#92400E",fontFamily:"'Sarabun',sans-serif"}}>วัตถุดิบจัดการโดยสาขาครัวกลางเท่านั้น • สาขานี้ดูข้อมูลได้อย่างเดียว</span></div>}
+    <div style={{display:"flex",gap:6,marginBottom:14,flexWrap:"wrap",alignItems:"center",padding:"10px 12px",background:C.bg,borderRadius:14,border:`1px solid ${C.line}`}}>
+      <button onClick={()=>{setCat("ทุกหมวด");setPg(1);}} style={{padding:"6px 14px",borderRadius:20,border:`1.5px solid ${cat==="ทุกหมวด"?C.brand:C.line}`,background:cat==="ทุกหมวด"?C.brandLight:"transparent",color:cat==="ทุกหมวด"?C.brand:C.ink3,cursor:"pointer",fontSize:13,fontWeight:700,fontFamily:"'Sarabun',sans-serif"}}>ทุกหมวด</button>
+      {ingCats.map(c=>editingCatId===c.id?
+        <input key={c.id} value={editingCatName} onChange={e=>setEditingCatName(e.target.value)} onBlur={saveCatRename} onKeyDown={e=>{if(e.key==="Enter")saveCatRename();if(e.key==="Escape")setEditingCatId(null);}} autoFocus style={{...iS,width:120,padding:"5px 10px",fontSize:13,borderRadius:20,border:`1.5px solid ${C.brand}`}}/>
+        :<div key={c.id} style={{display:"flex",alignItems:"center",gap:0}}>
+          <button onClick={()=>{setCat(c.name);setPg(1);}} style={{padding:"6px 12px",borderRadius:canE?"20px 0 0 20px":"20px",border:`1.5px solid ${cat===c.name?C.brand:C.line}`,borderRight:canE?"none":undefined,background:cat===c.name?C.brandLight:"transparent",color:cat===c.name?C.brand:C.ink3,cursor:"pointer",fontSize:13,fontWeight:700,fontFamily:"'Sarabun',sans-serif"}}>{c.name}</button>
+          {canE&&<><button onClick={()=>{setEditingCatId(c.id);setEditingCatName(c.name);}} style={{padding:"6px 5px",border:`1.5px solid ${cat===c.name?C.brand:C.line}`,borderRight:"none",borderLeft:"none",background:cat===c.name?C.brandLight:"transparent",cursor:"pointer",display:"flex",alignItems:"center"}}><Ic d={I.pencil} s={11} c={cat===c.name?C.brand:C.ink4}/></button>
+          <button onClick={()=>delCat(c)} style={{padding:"6px 6px",borderRadius:"0 20px 20px 0",border:`1.5px solid ${cat===c.name?C.brand:C.line}`,background:cat===c.name?C.brandLight:"transparent",cursor:"pointer",display:"flex",alignItems:"center"}}><Ic d={I.trash} s={11} c={C.red}/></button></>}
+        </div>
+      )}
+      {canE&&(addingCat?
+        <div style={{display:"flex",gap:4,alignItems:"center"}}>
+          <input value={newCatName} onChange={e=>setNewCatName(e.target.value)} onKeyDown={e=>{if(e.key==="Enter")addCat();if(e.key==="Escape"){setAddingCat(false);setNewCatName("");}}} autoFocus placeholder="ชื่อหมวดหมู่..." style={{...iS,width:130,padding:"5px 10px",fontSize:13,borderRadius:20,border:`1.5px solid ${C.brand}`}}/>
+          <Btn v="success" onClick={addCat} s={{padding:"5px 12px",fontSize:12}}>ตกลง</Btn>
+          <Btn v="ghost" onClick={()=>{setAddingCat(false);setNewCatName("");}} s={{padding:"5px 10px",fontSize:12}}>ยกเลิก</Btn>
+        </div>
+        :<button onClick={()=>setAddingCat(true)} style={{padding:"6px 12px",borderRadius:20,border:`1.5px dashed ${C.line}`,background:"transparent",color:C.ink4,cursor:"pointer",fontSize:12,fontFamily:"'Sarabun',sans-serif",display:"flex",alignItems:"center",gap:4}}><Ic d={I.plus} s={11} c={C.ink4}/>เพิ่มหมวด</button>
+      )}
+    </div>
     <div style={{display:"flex",gap:10,marginBottom:20,flexWrap:"wrap"}}>
       <div style={{position:"relative",flex:1,minWidth:220}}><span style={{position:"absolute",left:12,top:"50%",transform:"translateY(-50%)"}}><Ic d={I.search} s={16} c={C.ink4}/></span><input value={q} onChange={e=>{setQ(e.target.value);setPg(1);}} placeholder="ค้นหาวัตถุดิบ..." style={{...iS,paddingLeft:40}}/></div>
-      <select value={cat} onChange={e=>{setCat(e.target.value);setPg(1);}} style={{...iS,width:"auto",minWidth:140,appearance:"none"}}><option>ทุกหมวด</option>{ingCats.map(c=><option key={c.id}>{c.name}</option>)}</select>
       {canE&&<Btn onClick={()=>{setForm(ef);setEditId(null);setOpen(true);}} icon={I.plus}>เพิ่มวัตถุดิบ</Btn>}
       {canE&&<Btn v="info" onClick={()=>setShowImport(true)} icon={I.ul}>Import</Btn>}
     </div>
@@ -1294,8 +1316,7 @@ function SupplierTab({suppliers,reloadSuppliers,currentUser}){
 }
 
 function SettingsTab({ingCats,menuCats,reloadCats,users,reloadUsers,branches,reloadBranches,suppliers,reloadSuppliers,currentUser,printers=[],reloadPrinters,currentBranch}){
-  const[section,setSection]=useState("cats");
-  const[newIC,setNewIC]=useState("");const[newMC,setNewMC]=useState("");
+  const[section,setSection]=useState("branches");
   const[showUser,setShowUser]=useState(false);const[editUID,setEditUID]=useState(null);const[saving,setSaving]=useState(false);
   const uF0={username:"",password:"",name:"",role:"staff",active:true,perms:ROLE_DEFAULT_PERMS.staff};
   const[uF,setUF]=useState(uF0);
@@ -1308,28 +1329,13 @@ function SettingsTab({ingCats,menuCats,reloadCats,users,reloadUsers,branches,rel
   async function saveBranch(){if(!branchForm.name)return;try{if(editBID)await api.updateBranch(editBID,branchForm);else await api.addBranch(branchForm);await reloadBranches();setBranchForm({name:"",type:"branch",active:true});setEditBID(null);}catch(e){alert("บันทึกไม่สำเร็จ");};}
   async function savePrinter(){if(!pForm.name||!pForm.ip)return;setPSaving(true);try{const d={...pForm,port:+pForm.port||9100,branch_id:pForm.branch_id||null};if(editPID)await api.updatePrinter(editPID,d);else await api.addPrinter(d);await reloadPrinters();setPForm(pF0);setEditPID(null);}catch(e){alert("บันทึกไม่สำเร็จ: "+e.message);}setPSaving(false);}
 
-  const sections=[{id:"cats",label:"หมวดหมู่",icon:I.tag},{id:"branches",label:"สาขา",icon:I.branch},{id:"users",label:"ผู้ใช้",icon:I.users},{id:"printers",label:"เครื่องปริ้น",icon:I.print}];
+  const sections=[{id:"branches",label:"สาขา",icon:I.branch},{id:"users",label:"ผู้ใช้",icon:I.users},{id:"printers",label:"เครื่องปริ้น",icon:I.print}];
 
   return <div style={{display:"grid",gridTemplateColumns:"180px 1fr",gap:16,minHeight:480}}>
     <Card style={{padding:8,height:"fit-content"}}>
       {sections.map(s=><div key={s.id} onClick={()=>setSection(s.id)} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 12px",borderRadius:10,cursor:"pointer",marginBottom:4,background:section===s.id?C.brandLight:"transparent",color:section===s.id?C.brand:C.ink2,fontWeight:section===s.id?700:500,fontFamily:"'Sarabun',sans-serif",fontSize:14,transition:"all .15s"}}><Ic d={s.icon} s={15} c={section===s.id?C.brand:C.ink3}/>{s.label}</div>)}
     </Card>
     <div>
-    {section==="cats"&&<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}>
-      {[{title:"หมวดหมู่วัตถุดิบ",icon:I.leaf,cats:ingCats,addFn:async()=>{if(!newIC.trim())return;await api.addCat({type:"ingredient",name:newIC.trim()});await reloadCats();setNewIC("");},delFn:async(id,name)=>{if(!confirm(`ลบหมวด "${name}"?`))return;await api.deleteCat(id);await reloadCats();},newV:newIC,setNew:setNewIC},
-        {title:"หมวดหมู่เมนู",icon:I.fire,cats:menuCats,addFn:async()=>{if(!newMC.trim())return;await api.addCat({type:"menu",name:newMC.trim()});await reloadCats();setNewMC("");},delFn:async(id,name)=>{if(!confirm(`ลบหมวด "${name}"?`))return;await api.deleteCat(id);await reloadCats();},newV:newMC,setNew:setNewMC}
-      ].map(({title,icon,cats,addFn,delFn,newV,setNew})=>(
-        <Card key={title} style={{padding:"18px 20px"}}>
-          <h3 style={{fontFamily:"'Sarabun',sans-serif",fontSize:15,fontWeight:800,color:C.ink,marginBottom:14,display:"flex",alignItems:"center",gap:8}}><Ic d={icon} s={15} c={C.brand}/>{title}</h3>
-          {cats.map(c=><div key={c.id} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"8px 12px",borderRadius:9,marginBottom:5,background:C.bg,border:`1px solid ${C.line}`}}>
-            <span style={{fontFamily:"'Sarabun',sans-serif",fontSize:14,color:C.ink2}}>{c.name}</span>
-            {isAdmin&&<button onClick={()=>delFn(c.id,c.name)} style={{background:C.redLight,border:"none",borderRadius:6,padding:"4px 8px",cursor:"pointer",display:"flex"}}><Ic d={I.trash} s={13} c={C.red}/></button>}
-          </div>)}
-          {isAdmin&&<div style={{display:"flex",gap:8,marginTop:8}}><input value={newV} onChange={e=>setNew(e.target.value)} onKeyDown={e=>e.key==="Enter"&&addFn()} placeholder="หมวดใหม่..." style={{...iS,flex:1,padding:"7px 12px",fontSize:13}}/><Btn onClick={addFn} icon={I.plus} s={{padding:"7px 12px"}}>เพิ่ม</Btn></div>}
-        </Card>
-      ))}
-    </div>}
-
     {section==="branches"&&<div>
       <h3 style={{fontFamily:"'Sarabun',sans-serif",fontSize:15,fontWeight:800,color:C.ink,marginBottom:14}}>จัดการสาขา</h3>
       <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(260px,1fr))",gap:12,marginBottom:16}}>
@@ -1693,7 +1699,7 @@ export default function App(){
         <div style={{flex:1,padding:"24px 28px 56px"}}>
           {initErr&&<ErrBox msg={initErr} onRetry={loadAll}/>}
           {loading?<Loading text="กำลังโหลดข้อมูลจาก Cloud..."/>:<>
-            {tab==="ingredients"&&<IngTab ings={ings} reload={reload.ings} ingCats={ingCats} suppliers={suppliers} currentUser={currentUser} currentBranch={currentBranch} addH={addH} branches={branches}/>}
+            {tab==="ingredients"&&<IngTab ings={ings} reload={reload.ings} ingCats={ingCats} suppliers={suppliers} currentUser={currentUser} currentBranch={currentBranch} addH={addH} branches={branches} reloadCats={reload.cats}/>}
             {tab==="menus"&&<MenuTab menus={menus} reload={reload.menus} ings={ings} menuCats={menuCats} currentUser={currentUser} currentBranch={currentBranch} addH={addH} printers={printers} branches={branches} allCats={allCats} reloadCats={reload.cats}/>}
             {tab==="sop"&&<SOPTab menus={menus} reload={reload.menus} ings={ings} currentUser={currentUser} currentBranch={currentBranch}/>}
             {tab==="summary"&&<SumTab menus={menus} ings={ings} currentBranch={currentBranch} reloadHistory={reload.history} reloadOrders={reload.orders} currentUser={currentUser}/>}
